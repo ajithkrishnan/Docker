@@ -1,0 +1,36 @@
+# install ros packages
+RUN apt-get update && apt-get install -y \
+    ros-kinetic-desktop=1.3.2-0* \
+&& rm -rf /var/lib/apt/lists/*
+
+RUN apt-get update && apt-get install -y \
+    python-rosinstall \
+    python-rosinstall-generator \
+    python-wstool \
+    build-essential \
+&& rm -rf /var/lib/apt/lists/*
+
+# bootstrap rosdep
+RUN rosdep init \
+    && rosdep update
+
+RUN echo "source /opt/ros/kinetic/setup.bash" >> /root/.bashrc
+RUN /bin/bash -c "source ~/.bashrc"
+# RUN /bin/bash -c "source /opt/ros/kinetic/setup.bash"
+
+# COPY /ros_entrypoint.sh .
+# ENTRYPOINT ["/ros_entrypoint.sh"]
+
+RUN mkdir -p /root/catkin_ws/src/
+WORKDIR /root/catkin_ws/src
+RUN catkin_init_workspace && \
+    cd ../ && catkin_make -j8 && \
+echo ". /home/ros/catkin_ws/devel/setup.bash" >> /root/.bashrc
+# RUN /ros_entrypoint.sh catkin_make
+RUN /bin/bash -c "source devel/setup.bash"
+
+
+CMD [ "bash" ]
+
+
+

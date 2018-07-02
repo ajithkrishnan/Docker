@@ -1,0 +1,104 @@
+FROM tensorflow_and_cuda:latest
+
+MAINTAINER Ajith Krishnan
+
+#---------------
+# INSTALL DEPENDENCIES
+#---------------
+
+RUN apt-get update \
+    && apt-get install -y xorg-dev \
+    libgl1-mesa-dev \
+    xvfb \
+    libxinerama1 \
+    libxcursor1 \
+    unzip \
+    libglu1-mesa \
+    libav-tools \
+    python3 \
+    python3-pip \
+    python \
+    python-pip \
+    # python3-numpy \
+    # python3-scipy \
+    # python3-pyglet \
+    python3-setuptools \
+    libpq-dev \
+    libjpeg-dev \
+    wget \
+    curl \
+    cmake \
+    git \
+ && apt-get clean \
+&& rm -rf /var/lib/apt/lists/*
+
+#---------------
+# INSTALL GAZEBO
+#---------------
+
+RUN sh -c 'echo "deb http://packages.osrfoundation.org/gazebo/ubuntu-stable xenial main" > /etc/apt/sources.list.d/gazebo-stable.list'
+
+RUN wget http://packages.osrfoundation.org/gazebo.key -O - | apt-key add -
+
+RUN apt-get update && apt-get install -y \
+    gazebo9 \
+    libgazebo9-dev \
+&& rm -rf /var/lib/apt/lists/*
+# RUN apt-get install -y libglib2.0-dev libgts-dev libgts-dev
+
+# setup environment
+EXPOSE 11345
+
+#---------------
+# INSTALL ROS
+#---------------
+
+# setup environment
+ENV LANG C.UTF-8
+ENV LC_ALL C.UTF-8
+
+# setup keys
+RUN apt-key adv --keyserver ha.pool.sks-keyservers.net --recv-keys 421C365BD9FF1F717815A3895523BAEEB01FA116
+
+# setup sources.list
+RUN echo "deb http://packages.ros.org/ros/ubuntu xenial main" > /etc/apt/sources.list.d/ros-latest.list
+# RUN sh -c 'echo "deb http://packages.ros.org/ros/ubuntu $(lsb_release -sc) main" > /etc/apt/sources.list.d/ros-latest.list'
+#
+# # install ros packages
+ENV ROS_DISTRO kinetic
+RUN apt-get install cmake gcc g++
+
+RUN apt-get update && apt-get install libboost-all-dev -y
+
+RUN pip3 install --upgrade pip
+RUN pip3 install -U rosdep rosinstall_generator wstool rosinstall
+RUN pip3 install rospkg catkin_pkg empy
+
+# bootstrap rosdep
+RUN rosdep init \
+    && rosdep update
+
+RUN mkdir ~/ros_catkin_ws
+# Create package set
+RUN cd ~/ros_catkin_ws && rosinstall_generator ros_comm --rosdistro kinetic \
+            --deps --wet-only --tar > kinetic-ros_comm-wet.rosinstall
+# Fetch packages
+RUN cd ~/ros_catkin_ws && wstool init -j8 src kinetic-ros_comm-wet.rosinstall
+# # Solve dependencies
+# RUN cd ~/ros_catkin_ws && rosdep install --from-paths src --ignore-src --rosdistro kinetic -y
+
+# Create symbolic link for the compilation
+RUN cd /usr/bin && ln -sf python3 python
+
+
+# Install console_bridge from packages
+RUN apt-get install libconsole-bridge-dev -y
+# # Compile/install console_bridge as a library
+# RUN git clone git://github.com/ros/console_bridge.git
+# RUN cd console_bridge && cmake . && make
+# RUN cd console_bridge && make install
+
+RUN apt-get install -y libtinyxml-dev liblz4-dev libbz2-dev liburdfdom-dev libpoco-dev \
+libtinyxml2-dev
+
+CMD [ "bash" ]
